@@ -1,59 +1,67 @@
-name: Send Silent Push Every 15 Minutes
+- name: Send Silent Push Every 15 Minutes
 
-on:
+- on:
   schedule:
-    - cron: '*/15 * * * *'  # Trigger every 15 minutes
+    - cron: '*/15 * * * *'  # Runs every 15 minutes
 
-jobs:
+- jobs:
   send-silent-push:
     runs-on: ubuntu-latest
+    timeout-minutes: 5  # Prevent long-running jobs
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'  # Explicit version for stability
 
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl jq python3-pip
-          pip3 install --user google-auth
+          sudo apt-get install -y curl jq
+          pip install google-auth
 
       - name: Generate Access Token
         id: token
+        env:
+          SERVICE_ACCOUNT_JSON: ${{ secrets.SERVICE_ACCOUNT_JSON }}
         run: |
-          echo "${{ secrets.SERVICE_ACCOUNT_JSON }}" > sa.json
-          ACCESS_TOKEN=$(python3 - <<EOF
-import json, google.oauth2.service_account, google.auth.transport.requests
-sa_info = json.loads(open('sa.json').read())
-credentials = google.oauth2.service_account.Credentials.from_service_account_info(
-    sa_info, scopes=['https://www.googleapis.com/auth/firebase.messaging']
-)
-request = google.auth.transport.requests.Request()
-credentials.refresh(request)
-print(credentials.token)
-EOF
-)
-          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_ENV  # Use $GITHUB_ENV instead of $GITHUB_OUTPUT for environment variables
+          echo "$SERVICE_ACCOUNT_JSON" > sa.json
+          ACCESS_TOKEN=$(python3 - <<EOF import json, google.oauth2.service_account, google.auth.transport.requests sa_info = json.loads(open('sa.json').read()) credentials = google.oauth2.service_account.Credentials.from_service_account_info(sa_info, scopes=['https://www.googleapis.com/auth/firebase.messaging'])request = google.auth.transport.requests.Request()credentials.refresh(request)print(credentials.token)EOF)
+          echo "ACCESS_TOKEN=$ACCESS_TOKEN" >> $GITHUB_ENV
 
-      - name: Send Silent Push
+      - name: Send Silent Push Notification
         env:
           FCM_TOKEN: ${{ secrets.DEVICE_FCM_TOKEN }}
-          PROJECT_ID: lite-360
-          ACCESS_TOKEN: ${{ env.access_token }}  # Use the correct reference for environment variables
+          PROJECT_ID: ${{ secrets.PROJECT_ID || 'lite-360' }}
         run: |
-          curl -s -X POST \
+          curl -X POST \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
             -H "Content-Type: application/json" \
+            -H "Cache-Control: no-cache" \
             https://fcm.googleapis.com/v1/projects/$PROJECT_ID/messages:send \
             -d '{
               "message": {
                 "token": "'"$FCM_TOKEN"'",
                 "apns": {
-                  "headers": { "apns-priority": "10" },
-                  "payload": { "aps": { "content-available": 1 } }
+                  "headers": {
+                    "apns-priority": "5",  # Correct priority for background notifications
+                    "apns-push-type": "background"
+                  },
+                  "payload": {
+                    "aps": {
+                      "content-available": 1,
+                      "sound": ""  # Explicitly silent
+                    }
+                  }
                 },
                 "data": {
                   "silent": "true",
-                  "action": "location_upload"
+                  "action": "location_upload",
+                  "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
                 }
               }
             }'
