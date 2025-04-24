@@ -22,10 +22,15 @@ jobs:
         run: |
           echo "${{ secrets.SERVICE_ACCOUNT_JSON }}" > sa.json
           ACCESS_TOKEN=$(python3 - <<EOF
-import json, google.oauth2.service_account, google.auth.transport.requests
-sa_info = json.loads(open('sa.json').read())
+import json
+import google.oauth2.service_account
+import google.auth.transport.requests
+
+with open("sa.json") as f:
+    sa_info = json.load(f)
+
 credentials = google.oauth2.service_account.Credentials.from_service_account_info(
-    sa_info, scopes=['https://www.googleapis.com/auth/firebase.messaging']
+    sa_info, scopes=["https://www.googleapis.com/auth/firebase.messaging"]
 )
 request = google.auth.transport.requests.Request()
 credentials.refresh(request)
@@ -57,4 +62,3 @@ EOF
                 }
               }
             }'
-
