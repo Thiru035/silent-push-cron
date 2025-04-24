@@ -2,7 +2,7 @@ name: Send Silent Push Every 15 Minutes
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/15 * * * *'  # Trigger every 15 minutes
 
 jobs:
   send-silent-push:
@@ -22,28 +22,23 @@ jobs:
         run: |
           echo "${{ secrets.SERVICE_ACCOUNT_JSON }}" > sa.json
           ACCESS_TOKEN=$(python3 - <<EOF
-import json
-import google.oauth2.service_account
-import google.auth.transport.requests
-
-with open("sa.json") as f:
-    sa_info = json.load(f)
-
+import json, google.oauth2.service_account, google.auth.transport.requests
+sa_info = json.loads(open('sa.json').read())
 credentials = google.oauth2.service_account.Credentials.from_service_account_info(
-    sa_info, scopes=["https://www.googleapis.com/auth/firebase.messaging"]
+    sa_info, scopes=['https://www.googleapis.com/auth/firebase.messaging']
 )
 request = google.auth.transport.requests.Request()
 credentials.refresh(request)
 print(credentials.token)
 EOF
 )
-          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
+          echo "access_token=$ACCESS_TOKEN" >> $GITHUB_ENV  # Use $GITHUB_ENV instead of $GITHUB_OUTPUT for environment variables
 
       - name: Send Silent Push
         env:
           FCM_TOKEN: ${{ secrets.DEVICE_FCM_TOKEN }}
           PROJECT_ID: lite-360
-          ACCESS_TOKEN: ${{ steps.token.outputs.access_token }}
+          ACCESS_TOKEN: ${{ env.access_token }}  # Use the correct reference for environment variables
         run: |
           curl -s -X POST \
             -H "Authorization: Bearer $ACCESS_TOKEN" \
