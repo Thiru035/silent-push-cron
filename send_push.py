@@ -26,7 +26,7 @@ headers = {
 # FCM message payload
 message = {
     "message": {
-        "token": "<FCM_DEVICE_TOKEN>",
+        "token": "fzkLAxPTNkqDmzTNoyZ44p:APA91bERMcbrrKtbTB_YrCU7mUr8rzSPPSJBY3BS9qXuURj3je63M4eYQtFvn5D4JXjgaSxmG8U53sWK5C_IXZdVKcfXuvYyEnHjrYGg-UfIMI5NbuozVYs",
         "notification": {
             "title": "Test Notification",
             "body": "This is a test push notification"
@@ -36,7 +36,7 @@ message = {
 
 # Send the message via FCM
 response = requests.post(
-    'https://fcm.googleapis.com/v1/projects/<YOUR_PROJECT_ID>/messages:send',
+    'https://fcm.googleapis.com/v1/projects/lite-360/messages:send',
     headers=headers,
     data=json.dumps(message)
 )
