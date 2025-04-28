@@ -19,7 +19,7 @@ ACCESS_TOKEN = credentials.token
 
 # Define headers for the HTTP request
 headers = {
-    "Authorization": f"Bearer {ACCESS_TOKEN}",
+    "Authorization": "Bearer {ACCESS_TOKEN}",
     "Content-Type": "application/json"
 }
 
