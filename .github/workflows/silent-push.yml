@@ -1,30 +1,41 @@
+# .github/workflows/silent-push.yml
 name: Send Silent Push Every 15 Minutes
 
+# Trigger every 15 minutes, and also allow manual runs
 on:
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:
-  send_push_notification:
+  send_silent_push:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.x
+      # 1. Check out your repo so send_push.py is available
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install requests google-auth google-auth-httplib2 google-auth-oauthlib
+      # 2. Set up Python 3.x
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
 
-    - name: Set up Firebase credentials
-      run: echo "${{ secrets.FIREBASE_KEY_JSON }}" > firebase-key.json
+      # 3. Install needed Python packages
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests google-auth
 
-    - name: Run Python script
-      run: python3 send_push.py
+      # 4. Recreate the Firebase key file from Base64 secret
+      - name: Decode Firebase credentials
+        run: |
+          echo "${{ secrets.FIREBASE_KEY_B64 }}" | base64 --decode > firebase-key.json
+
+      # 5. Run your Python script to send the push
+      - name: Send silent push
+        env:
+          FCM_DEVICE_TOKEN: ${{ secrets.FCM_DEVICE_TOKEN }}
+        run: |
+          python send_push.py
